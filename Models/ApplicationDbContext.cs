@@ -13,5 +13,6 @@ public class ApplicationDbContext : DbContext
     public DbSet<Quiz> Quizzes { get; set; }
     public DbSet<Question> Questions { get; set; }
     public DbSet<Answer> Answers { get; set; }
+    public DbSet<Collection> Collections { get; set; }
 
 }

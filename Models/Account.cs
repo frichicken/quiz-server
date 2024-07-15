@@ -8,4 +8,5 @@ public class Account
     public string LastName { get; set; } = "";
     public string FirstName { get; set; } = "";
     public List<Quiz> Quizzes { get; set; } = [];
+    public List<Collection> Collections { get; set; } = [];
 }

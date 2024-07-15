@@ -43,20 +43,20 @@ public class AccountController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update([FromRoute] int id, [FromBody] Account accosunt)
+    public async Task<IActionResult> Update([FromRoute] int id, [FromBody] Account account)
     {
-        if (id != accosunt.Id) return BadRequest();
+        if (id != account.Id) return BadRequest();
 
         var stuff = await _context.Accounts.FindAsync(id);
 
         if (stuff is null) return NotFound();
 
-        stuff.Email = accosunt.Email;
-        stuff.Description = accosunt.Description;
-        stuff.FirstName = accosunt.FirstName;
-        stuff.LastName = accosunt.LastName;
-        stuff.Password = accosunt.Password;
-        stuff.Username = accosunt.Username;
+        stuff.Email = account.Email;
+        stuff.Description = account.Description;
+        stuff.FirstName = account.FirstName;
+        stuff.LastName = account.LastName;
+        stuff.Password = account.Password;
+        stuff.Username = account.Username;
 
         await _context.SaveChangesAsync();
 
@@ -94,7 +94,7 @@ public class AccountController : ControllerBase
     [Route("/log-in")]
     public async Task<ActionResult<Account>> LogIn([FromBody] Account account)
     {
-        var stuff = await _context.Accounts.FindAsync(account.Id);
+        var stuff = await _context.Accounts.FirstOrDefaultAsync(it => it.Email.Equals(account.Email));
 
         if (stuff is null)
             return NotFound();
