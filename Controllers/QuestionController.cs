@@ -55,7 +55,7 @@ public class QuestionController : ControllerBase
         _context.Questions.Add(stuff);
         await _context.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(GetById), new { id = stuff.Id }, stuff);
+        return CreatedAtAction(nameof(GetById), new { quizId, questionId = stuff.Id }, stuff);
     }
 
     [HttpDelete("{questionId}")]
@@ -81,6 +81,7 @@ public class QuestionController : ControllerBase
         if (stuff is null) return NotFound();
 
         stuff.Text = question.Text;
+        stuff.IsStarred = question.IsStarred;
 
         await _context.SaveChangesAsync();
 

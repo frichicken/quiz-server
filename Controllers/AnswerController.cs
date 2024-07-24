@@ -53,10 +53,10 @@ public class AnswerController : ControllerBase
             QuestionId = questionId
         };
 
-        _context.Answers.Add(stuff);
+        await _context.Answers.AddAsync(stuff);
         await _context.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(GetById), new { id = stuff.Id }, stuff);
+        return CreatedAtAction(nameof(GetById), new { questionId, answerId = stuff.Id }, stuff);
     }
 
     [HttpDelete("{answerId}")]

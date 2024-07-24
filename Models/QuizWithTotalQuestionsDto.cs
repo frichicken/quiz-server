@@ -1,4 +1,5 @@
-public class Quiz
+
+public class QuizWithTotalQuestionsDto
 {
     public int Id { get; set; }
     public string Title { get; set; } = "";
@@ -7,8 +8,5 @@ public class Quiz
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime LastModified { get; set; } = DateTime.Now;
     public bool IsSaved { get; set; }
-    public List<Question> Questions { get; set; } = [];
-    public int? AccountId { get; set; }
-    public Account? Account { get; set; } = null!;
-    public List<Collection> Collections { get; set; } = [];
+    public int TotalQuestions { get; set; }
 }

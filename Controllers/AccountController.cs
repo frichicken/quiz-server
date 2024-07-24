@@ -79,7 +79,7 @@ public class AccountController : ControllerBase
                 Description = account.Description,
                 FirstName = account.FirstName,
                 LastName = account.LastName,
-                Password = account.Password,
+                Password = account.Password, // It's not hashed
                 Username = account.Username,
             };
 

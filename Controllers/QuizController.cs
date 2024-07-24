@@ -2,17 +2,6 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-public class QuizWithTotalQuestionsDto
-{
-    public int Id { get; set; }
-    public string Title { get; set; } = "";
-    public string Description { get; set; } = "";
-    public int Status { get; set; } = (int)QuizStatuses.Draft;
-    public DateTime CreatedAt { get; set; } = DateTime.Now;
-    public DateTime LastModified { get; set; } = DateTime.Now;
-    public int TotalQuestions { get; set; }
-}
-
 [ApiController]
 [Route("api/accounts/{accountId}/quizzes")]
 public class QuizController : ControllerBase
@@ -50,6 +39,7 @@ public class QuizController : ControllerBase
             Description = it.Description,
             Status = it.Status,
             CreatedAt = it.CreatedAt,
+            IsSaved = it.IsSaved,
             LastModified = it.LastModified,
             TotalQuestions = it.Questions.Count()
         }).ToListAsync();
@@ -86,10 +76,10 @@ public class QuizController : ControllerBase
             AccountId = accountId
         };
 
-        _context.Quizzes.Add(stuff);
+        await _context.Quizzes.AddAsync(stuff);
         await _context.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(GetById), new { id = stuff.Id }, stuff);
+        return CreatedAtAction(nameof(GetById), new { accountId, quizId = stuff.Id }, stuff);
     }
 
     [HttpDelete("{quizId}")]
@@ -118,6 +108,7 @@ public class QuizController : ControllerBase
         stuff.Description = quiz.Description;
         stuff.LastModified = DateTime.Now;
         stuff.Status = quiz.Status;
+        stuff.IsSaved = quiz.IsSaved;
 
         await _context.SaveChangesAsync();
 
