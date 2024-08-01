@@ -50,7 +50,8 @@ public class AnswerController : ControllerBase
         var stuff = new Answer
         {
             Text = answer.Text,
-            QuestionId = questionId
+            QuestionId = questionId,
+            IsCorrect = answer.IsCorrect,
         };
 
         await _context.Answers.AddAsync(stuff);
@@ -83,6 +84,33 @@ public class AnswerController : ControllerBase
 
         stuff.Text = answer.Text;
         stuff.IsCorrect = answer.IsCorrect;
+
+        await _context.SaveChangesAsync();
+
+        return NoContent();
+    }
+
+    [HttpPut("update-multiple")]
+    public async Task<IActionResult> UpdateMultiple([FromRoute] int questionId, [FromBody] List<Answer> answers)
+    {
+        var stuffs = await _context.Answers.Where(answer => answer.QuestionId == questionId).ToListAsync();
+
+        try
+        {
+            answers.ForEach(it =>
+            {
+                var updateAnswer = stuffs.Find(stuff => stuff.Id == it.Id);
+
+                if (updateAnswer is null) throw new Exception("");
+                
+                updateAnswer.IsCorrect = it.IsCorrect;
+                updateAnswer.Text = it.Text;
+            });
+        }
+        catch
+        {
+            return NotFound();
+        }
 
         await _context.SaveChangesAsync();
 

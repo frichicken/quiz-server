@@ -82,6 +82,7 @@ public class QuestionController : ControllerBase
 
         stuff.Text = question.Text;
         stuff.IsStarred = question.IsStarred;
+        stuff.Type = question.Type;
 
         await _context.SaveChangesAsync();
 
