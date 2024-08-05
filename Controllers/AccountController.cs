@@ -12,12 +12,6 @@ public class AccountController : ControllerBase
         _context = context;
     }
 
-    [HttpGet]
-    public async Task<ActionResult<List<Account>>> Get()
-    {
-        return await _context.Accounts.ToListAsync();
-    }
-
     [HttpGet("{id}")]
     public async Task<ActionResult<Account>> GetById([FromRoute] int id)
     {
@@ -67,9 +61,9 @@ public class AccountController : ControllerBase
     [Route("/sign-up")]
     public async Task<ActionResult<Account>> SignUp([FromBody] Account account)
     {
-        if (await _context.Accounts.AnyAsync(stuff => stuff.Email == account.Email))
+        if (await _context.Accounts.AnyAsync(stuff => stuff.Email.Equals(account.Email)))
         {
-            return NotFound();
+            return BadRequest();
         }
         else
         {
@@ -79,7 +73,7 @@ public class AccountController : ControllerBase
                 Description = account.Description,
                 FirstName = account.FirstName,
                 LastName = account.LastName,
-                Password = account.Password, // It's not hashed
+                Password = account.Password, // it's not hashed
                 Username = account.Username,
             };
 
