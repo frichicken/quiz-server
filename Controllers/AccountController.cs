@@ -74,7 +74,7 @@ public class AccountController : ControllerBase
                 FirstName = account.FirstName,
                 LastName = account.LastName,
                 Password = account.Password, // it's not hashed
-                Username = account.Username,
+                Username = account.Username
             };
 
             await _context.Accounts.AddAsync(stuff);
@@ -94,7 +94,14 @@ public class AccountController : ControllerBase
             return NotFound();
 
         if (stuff.Email.Equals(account.Email) && stuff.Password.Equals(account.Password))
+        {
+            stuff.SessionId = Utilities.GetRandomString();
+            stuff.ExpiresIn = DateTime.Now.AddMinutes(30);
+
+            await _context.SaveChangesAsync();
+
             return stuff;
+        }
 
         return BadRequest();
     }
