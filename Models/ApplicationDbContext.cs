@@ -6,7 +6,10 @@ public class ApplicationDbContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
+        optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), options =>
+        {
+            options.EnableStringComparisonTranslations();
+        });
     }
 
     public DbSet<Account> Accounts { get; set; }

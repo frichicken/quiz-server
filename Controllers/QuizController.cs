@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,9 +30,21 @@ public class QuizController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<QuizWithTotalQuestionsDto>>> Get([FromRoute] int accountId)
+    public async Task<ActionResult<List<QuizWithTotalQuestionsDto>>> Get([FromRoute] int accountId, [FromQuery] string? keyword, [FromQuery] int? filter = (int)FilterTypes.Recent)
     {
-        return await _context.Quizzes.Where(quiz => quiz.AccountId == accountId).Include(it => it.Questions).Select(it => new QuizWithTotalQuestionsDto
+        Debug.WriteLine(keyword);
+        var quizzes = _context.Quizzes.Where(quiz => quiz.AccountId == accountId);
+
+        if (filter == (int)FilterTypes.Draft) quizzes = quizzes.Where(quiz => quiz.Status == (int)FilterTypes.Draft);
+
+        if (filter == (int)FilterTypes.Published) quizzes = quizzes.Where(quiz => quiz.Status == (int)FilterTypes.Published);
+
+        if (filter == (int)FilterTypes.Saved) quizzes = quizzes.Where(quiz => quiz.Status == (int)FilterTypes.Published && quiz.IsSaved);
+
+        if (keyword != null)
+            quizzes = quizzes.Where(quiz => quiz.Title.Trim().Contains(keyword.Trim(), StringComparison.CurrentCultureIgnoreCase) || keyword.Trim().Contains(quiz.Title.Trim(), StringComparison.CurrentCultureIgnoreCase));
+
+        return await quizzes.Include(it => it.Questions).Select(it => new QuizWithTotalQuestionsDto
         {
             Id = it.Id,
             Title = it.Title,

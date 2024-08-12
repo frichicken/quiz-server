@@ -34,9 +34,16 @@ public class CollectionController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<CollectionWithTotalQuizzesDto>>> Get([FromRoute] int accountId)
+    public async Task<ActionResult<List<CollectionWithTotalQuizzesDto>>> Get([FromRoute] int accountId, [FromQuery] string? keyword)
     {
-        return await _context.Collections.Where(it => it.AccountId == accountId).Include(it => it.Quizzes).Select(it => new CollectionWithTotalQuizzesDto
+        var collections = _context.Collections.Where(it => it.AccountId == accountId);
+
+        if (keyword != null)
+        {
+            collections = collections.Where(collection => collection.Title.Trim().Contains(keyword.Trim(), StringComparison.CurrentCultureIgnoreCase) || keyword.Trim().Contains(collection.Title.Trim(), StringComparison.CurrentCultureIgnoreCase));
+        }
+
+        return await collections.Include(it => it.Quizzes).Select(it => new CollectionWithTotalQuizzesDto
         {
             Id = it.Id,
             Title = it.Title,
