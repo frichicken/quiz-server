@@ -12,10 +12,25 @@ public class ApplicationDbContext : DbContext
         });
     }
 
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Quiz>()
+            .HasMany(entity => entity.Accounts)
+            .WithMany(entity => entity.Quizzes)
+            .UsingEntity<QuizAccount>();
+
+        modelBuilder.Entity<Question>()
+            .HasMany(entity => entity.Accounts)
+            .WithMany(entity => entity.Questions)
+            .UsingEntity<QuestionAccount>();
+    }
+
     public DbSet<Account> Accounts { get; set; }
     public DbSet<Quiz> Quizzes { get; set; }
     public DbSet<Question> Questions { get; set; }
     public DbSet<Answer> Answers { get; set; }
     public DbSet<Collection> Collections { get; set; }
+    public DbSet<QuizAccount> QuizAccount { get; set; }
+    public DbSet<QuestionAccount> QuestionAccount { get; set; }
 
 }

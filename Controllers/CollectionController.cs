@@ -19,7 +19,7 @@ public class CollectionWithQuizzesDto
     public string Description { get; set; } = "";
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime LastModified { get; set; } = DateTime.Now;
-    public List<QuizWithTotalQuestionsDto> Quizzes { get; set; } = [];
+    public List<QuizResponseDto> Quizzes { get; set; } = [];
 }
 
 [ApiController]
@@ -79,7 +79,7 @@ public class CollectionController : ControllerBase
             CreatedAt = stuff.CreatedAt,
             Description = stuff.Description,
             LastModified = stuff.LastModified,
-            Quizzes = stuff.Quizzes.Select(it => new QuizWithTotalQuestionsDto
+            Quizzes = stuff.Quizzes.Select(it => new QuizResponseDto
             {
                 Id = it.Id,
                 Title = it.Title,
@@ -144,7 +144,7 @@ public class CollectionController : ControllerBase
     public async Task<IActionResult> AddQuizToCollection([FromRoute] int accountId, [FromRoute] int collectionId, [FromRoute] int quizId)
     {
         var collection = await _context.Collections.Where(it => it.AccountId == accountId).FirstOrDefaultAsync(it => it.Id == collectionId);
-        var quiz = await _context.Quizzes.Where(it => it.AccountId == accountId).FirstOrDefaultAsync(it => it.Id == quizId);
+        var quiz = await _context.Quizzes.FirstOrDefaultAsync(it => it.Id == quizId);
 
         if (quiz is null || collection is null) return NotFound();
 
@@ -157,7 +157,7 @@ public class CollectionController : ControllerBase
     [HttpDelete("{collectionId}/delete-quiz/{quizId}")]
     public async Task<IActionResult> DeleteQuizFromCollection([FromRoute] int accountId, [FromRoute] int collectionId, [FromRoute] int quizId)
     {
-        var collection = await _context.Collections.Where(it => it.AccountId == accountId).Include(it => it.Quizzes).FirstOrDefaultAsync(it => it.Id == collectionId);
+        var collection = await _context.Collections.Include(it => it.Quizzes).FirstOrDefaultAsync(it => it.Id == collectionId && it.AccountId == accountId);
 
         if (collection is null) return NotFound();
         var quiz = collection.Quizzes.Find(it => it.Id == quizId);

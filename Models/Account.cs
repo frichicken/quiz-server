@@ -10,5 +10,10 @@ public class Account
     public string SessionId { get; set; } = "";
     public DateTime ExpiresIn { get; set; }
     public List<Quiz> Quizzes { get; set; } = [];
+    public List<Question> Questions { get; set; } = [];
     public List<Collection> Collections { get; set; } = [];
+    public List<QuizAccount> QuizAccounts { get; set; } = [];
+    public List<QuestionAccount> QuestionAccounts { get; set; } = [];
+
+
 }

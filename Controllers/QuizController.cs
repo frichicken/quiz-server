@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,12 +12,6 @@ public class QuizController : ControllerBase
         _context = context;
     }
 
-    [HttpGet("/api/quizzes")]
-    public async Task<ActionResult<List<Quiz>>> Get()
-    {
-        return await _context.Quizzes.ToListAsync();
-    }
-
     [HttpGet("/api/quizzes/{id}")]
     public async Task<ActionResult<Quiz>> GetById([FromRoute] int id)
     {
@@ -29,79 +22,152 @@ public class QuizController : ControllerBase
         return quiz;
     }
 
-    [HttpGet]
-    public async Task<ActionResult<List<QuizWithTotalQuestionsDto>>> Get([FromRoute] int accountId, [FromQuery] string? keyword, [FromQuery] int? filter = (int)FilterTypes.Recent)
-    {
-        Debug.WriteLine(keyword);
-        var quizzes = _context.Quizzes.Where(quiz => quiz.AccountId == accountId);
-
-        if (filter == (int)FilterTypes.Draft) quizzes = quizzes.Where(quiz => quiz.Status == (int)FilterTypes.Draft);
-
-        if (filter == (int)FilterTypes.Published) quizzes = quizzes.Where(quiz => quiz.Status == (int)FilterTypes.Published);
-
-        if (filter == (int)FilterTypes.Saved) quizzes = quizzes.Where(quiz => quiz.Status == (int)FilterTypes.Published && quiz.IsSaved);
-
-        if (keyword != null)
-            quizzes = quizzes.Where(quiz => quiz.Title.Trim().Contains(keyword.Trim(), StringComparison.CurrentCultureIgnoreCase) || keyword.Trim().Contains(quiz.Title.Trim(), StringComparison.CurrentCultureIgnoreCase));
-
-        return await quizzes.Include(it => it.Questions).Select(it => new QuizWithTotalQuestionsDto
-        {
-            Id = it.Id,
-            Title = it.Title,
-            Description = it.Description,
-            Status = it.Status,
-            CreatedAt = it.CreatedAt,
-            IsSaved = it.IsSaved,
-            LastModified = it.LastModified,
-            TotalQuestions = it.Questions.Count()
-        }).ToListAsync();
-    }
-
-    [HttpGet("{quizId}")]
-    public async Task<ActionResult<Quiz>> GetById([FromRoute] int accountId, [FromRoute] int quizId)
-    {
-        var quiz = await _context.Quizzes.Where(quiz => quiz.AccountId == accountId).FirstOrDefaultAsync(quiz => quiz.Id == quizId);
-
-        if (quiz is null) return NotFound();
-
-        return quiz;
-    }
-
-    [HttpGet("{quizId}/details")]
-    public async Task<ActionResult<Quiz>> GetDetailsById([FromRoute] int accountId, [FromRoute] int quizId)
-    {
-        var quiz = await _context.Quizzes.Include(quiz => quiz.Questions).ThenInclude(question => question.Answers).Where(quiz => quiz.AccountId == accountId).FirstOrDefaultAsync(quiz => quiz.Id == quizId);
-
-        if (quiz is null) return NotFound();
-
-        return quiz;
-    }
 
     [HttpPost]
     public async Task<ActionResult<Quiz>> Create([FromRoute] int accountId, [FromBody] Quiz quiz)
     {
-        var stuff = new Quiz
+        var account = await _context.Accounts.FirstOrDefaultAsync(account => account.Id == accountId);
+        if (account == null) return BadRequest();
+
+        var newQuiz = new Quiz
         {
             Title = quiz.Title,
             Description = quiz.Description,
             Status = (int)QuizStatuses.Draft,
-            AccountId = accountId
+            CreatedBy = accountId
         };
 
-        await _context.Quizzes.AddAsync(stuff);
+        await _context.Quizzes.AddAsync(newQuiz);
+        account.Quizzes.Add(newQuiz);
         await _context.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(GetById), new { accountId, quizId = stuff.Id }, stuff);
+        return CreatedAtAction(nameof(GetById), new { id = newQuiz.Id }, newQuiz);
     }
+
+    [HttpGet]
+    public async Task<ActionResult<List<QuizResponseDto>>> GetQuizList([FromRoute] int accountId, [FromQuery] string? keyword, [FromQuery] int? filter = (int)FilterTypes.Recent)
+    {
+        var quizAccounts = _context.QuizAccount.Include(qa => qa.Quiz).Where(qa => qa.AccountId == accountId);
+
+        if (filter == (int)FilterTypes.Draft) quizAccounts = quizAccounts.Where(qa => qa.Quiz.Status == (int)FilterTypes.Draft && qa.Quiz.CreatedBy == accountId);
+
+        if (filter == (int)FilterTypes.Published) quizAccounts = quizAccounts.Where(qa => qa.Quiz.Status == (int)FilterTypes.Published);
+
+        if (filter == (int)FilterTypes.Saved) quizAccounts = quizAccounts.Where(qa => qa.Quiz.Status == (int)FilterTypes.Published && qa.IsSaved);
+
+        if (string.IsNullOrEmpty(keyword) == false && string.IsNullOrWhiteSpace(keyword) == false)
+            quizAccounts = quizAccounts.Where(qa => qa.Quiz.Title.Trim().Contains(keyword.Trim(), StringComparison.CurrentCultureIgnoreCase) || keyword.Trim().Contains(qa.Quiz.Title.Trim(), StringComparison.CurrentCultureIgnoreCase));
+
+
+        var response = await quizAccounts.Select(qa => new QuizResponseDto
+        {
+            Id = qa.Quiz.Id,
+            Title = qa.Quiz.Title,
+            Description = qa.Quiz.Description,
+            Status = qa.Quiz.Status,
+            CreatedAt = qa.Quiz.CreatedAt,
+            CreatedBy = new AccountResponseGetQuizList
+            {
+                Id = _context.Accounts.FirstOrDefault(account => account.Id == qa.Quiz.CreatedBy).Id,
+                Email = _context.Accounts.FirstOrDefault(account => account.Id == qa.Quiz.CreatedBy).Email,
+            },
+            LastModified = qa.Quiz.LastModified,
+            TotalQuestions = qa.Quiz.Questions.Count,
+            IsSaved = qa.IsSaved
+        }).ToListAsync();
+
+        return response;
+    }
+
+    [HttpGet("/api/accounts/{createdBy}/quizzes/{quizId}/qa/{accountId}")]
+    public async Task<ActionResult<QuizDetailsResponseDto>> ForDetails([FromRoute] int createdBy, [FromRoute] int quizId, [FromRoute] int accountId)
+    {
+        var quiz = await _context.Quizzes
+            .Include(it => it.Questions)
+            .ThenInclude(it => it.Answers)
+            .Include(it => it.Questions)
+            .FirstOrDefaultAsync(quiz => quiz.Id == quizId && quiz.CreatedBy == createdBy);
+
+        if (quiz is null) return NotFound();
+
+        var response = new QuizDetailsResponseDto
+        {
+            Id = quiz.Id,
+            CreatedAt = quiz.CreatedAt,
+            LastModified = quiz.LastModified,
+            Description = quiz.Description,
+            IsSaved = _context.QuizAccount.FirstOrDefault(it => it.AccountId == accountId && quiz.Id == it.QuizId).IsSaved,
+            Status = quiz.Status,
+            CreatedBy = new AccountResponseGetQuizList
+            {
+                Id = _context.Accounts.Find(createdBy).Id,
+                Email = _context.Accounts.Find(createdBy).Email,
+            },
+            Questions = quiz.Questions.Select(it => new QuestionResponseDto
+            {
+                Id = it.Id,
+                Answers = it.Answers,
+                Text = it.Text,
+                IsStarred = _context.QuestionAccount.FirstOrDefault(qa => qa.AccountId == accountId && qa.QuestionId == it.Id).IsStarred,
+                Type = it.Type
+            }).ToList()
+        };
+
+        return response;
+    }
+
+    [HttpGet("{quizId}")]
+    public async Task<ActionResult<Quiz>> ForEditing([FromRoute] int accountId, [FromRoute] int quizId)
+    {
+        var quiz = await _context.Quizzes
+            .Include(it => it.Questions)
+            .ThenInclude(it => it.Answers)
+            .Include(it => it.Questions)
+            .FirstOrDefaultAsync(quiz => quiz.Id == quizId && quiz.CreatedBy == accountId);
+
+        if (quiz is null) return NotFound();
+
+        return quiz;
+    }
+
+    [HttpPut("{quizId}/handle-save")]
+    public async Task<IActionResult> HandleSave([FromRoute] int accountId, [FromRoute] int quizId, [FromBody] bool IsSaved)
+    {
+        var stuff = await _context.QuizAccount.FirstOrDefaultAsync(qa => qa.QuizId == quizId && qa.AccountId == accountId);
+
+        if (stuff is null) return NotFound();
+
+        stuff.IsSaved = IsSaved;
+
+        await _context.SaveChangesAsync();
+
+        return NoContent();
+    }
+
 
     [HttpDelete("{quizId}")]
     public async Task<IActionResult> Delete([FromRoute] int accountId, [FromRoute] int quizId)
     {
-        var quiz = await _context.Quizzes.Include(it => it.Questions).ThenInclude(it => it.Answers).Where(quiz => quiz.AccountId == accountId).FirstOrDefaultAsync(quiz => quiz.Id == quizId);
-
+        var quiz = await _context.Quizzes.Include(it => it.Collections).Include(it => it.Accounts).Include(it => it.Questions).ThenInclude(it => it.Answers).FirstOrDefaultAsync(quiz => quiz.Id == quizId);
         if (quiz is null) return NotFound();
 
-        _context.Quizzes.Remove(quiz);
+        if (quiz.CreatedBy == accountId)
+        {
+            // quiz.Collections.Clear();
+            // quiz.Questions.ForEach(it => it.Answers.Clear());
+            // quiz.Questions.Clear();
+            // quiz.Accounts.Clear();
+            // _context.Quizzes.Remove(quiz);
+            _context.Remove(quiz);
+        }
+        else
+        {
+            var qa = await _context.Accounts.FirstOrDefaultAsync(it => it.Id == accountId);
+
+            if (qa is null) return NotFound();
+
+            quiz.Accounts.Remove(qa);
+        }
 
         await _context.SaveChangesAsync();
 
@@ -113,14 +179,14 @@ public class QuizController : ControllerBase
     {
         if (quizId != quiz.Id) return BadRequest();
 
-        var stuff = await _context.Quizzes.Where(quiz => quiz.AccountId == accountId).FirstOrDefaultAsync(quiz => quiz.Id == quizId);
+        var stuff = await _context.Quizzes.FirstOrDefaultAsync(quiz => quiz.Id == quizId && quiz.CreatedBy == accountId);
+
         if (stuff is null) return NotFound();
 
         stuff.Title = quiz.Title;
         stuff.Description = quiz.Description;
         stuff.LastModified = DateTime.Now;
         stuff.Status = quiz.Status;
-        stuff.IsSaved = quiz.IsSaved;
 
         await _context.SaveChangesAsync();
 

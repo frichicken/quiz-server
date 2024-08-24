@@ -57,52 +57,70 @@ public class AccountController : ControllerBase
         return NoContent();
     }
 
+    // Validate email and password and check if it exists or not then register a new account
     [HttpPost]
     [Route("/sign-up")]
     public async Task<ActionResult<Account>> SignUp([FromBody] Account account)
     {
-        if (await _context.Accounts.AnyAsync(stuff => stuff.Email.Equals(account.Email)))
-        {
+        var email = account.Email.Trim();
+        var password = account.Password.Trim();
+
+        if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password)) return BadRequest();
+
+        if (Utilities.IsValidEmail(email) == false) return BadRequest();
+
+        if (await _context.Accounts.AnyAsync(account => account.Email.Trim().Equals(email)))
             return BadRequest();
-        }
         else
         {
-            var stuff = new Account
+            var newAccount = new Account
             {
                 Email = account.Email,
                 Description = account.Description,
                 FirstName = account.FirstName,
                 LastName = account.LastName,
-                Password = account.Password, // it's not hashed
+                Password = Utilities.Hash(account.Password),
                 Username = account.Username
             };
 
-            await _context.Accounts.AddAsync(stuff);
+            await _context.Accounts.AddAsync(newAccount);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetById), new { id = stuff.Id }, stuff);
+            return CreatedAtAction(nameof(GetById), new { id = newAccount.Id }, newAccount);
         }
     }
 
+    // Validate email and password and check if it exists or not then log in
     [HttpPost]
     [Route("/log-in")]
-    public async Task<ActionResult<Account>> LogIn([FromBody] Account account)
+    public async Task<ActionResult<AccountResponseDto>> LogIn([FromBody] Account account)
     {
-        var stuff = await _context.Accounts.FirstOrDefaultAsync(it => it.Email.Equals(account.Email));
+        var email = account.Email.Trim();
+        var password = account.Password.Trim();
+
+        if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password)) return BadRequest();
+
+        if (Utilities.IsValidEmail(email) == false) return BadRequest();
+
+        var stuff = await _context.Accounts.FirstOrDefaultAsync(it => it.Email.Trim().Equals(email) && it.Password.Trim().Equals(Utilities.Hash(password)));
 
         if (stuff is null)
             return NotFound();
 
-        if (stuff.Email.Equals(account.Email) && stuff.Password.Equals(account.Password))
+        stuff.SessionId = Utilities.GetRandomString();
+        stuff.ExpiresIn = DateTime.Now.AddMinutes(30);
+
+        await _context.SaveChangesAsync();
+
+        return new AccountResponseDto
         {
-            stuff.SessionId = Utilities.GetRandomString();
-            stuff.ExpiresIn = DateTime.Now.AddMinutes(30);
-
-            await _context.SaveChangesAsync();
-
-            return stuff;
-        }
-
-        return BadRequest();
+            Id = stuff.Id,
+            Email = stuff.Email,
+            Description = stuff.Description,
+            FirstName = stuff.FirstName,
+            LastName = stuff.LastName,
+            ExpiresIn = stuff.ExpiresIn,
+            SessionId = stuff.SessionId
+        };
     }
 }

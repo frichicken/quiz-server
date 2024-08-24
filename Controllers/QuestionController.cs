@@ -43,30 +43,35 @@ public class QuestionController : ControllerBase
         return question;
     }
 
-    [HttpPost]
-    public async Task<ActionResult<Question>> Create([FromRoute] int quizId, [FromBody] Question question)
+    [HttpPost("/api/accounts/{accountId}/quizzes/{quizId}/questions")]
+    public async Task<ActionResult<Question>> Create([FromRoute] int quizId, [FromRoute] int accountId, [FromBody] Question question)
     {
-        var stuff = new Question
+        var account = await _context.Accounts.FindAsync(accountId);
+        if (account is null) return BadRequest();
+
+        var newQuestion = new Question
         {
             Text = question.Text,
             QuizId = quizId
         };
 
-        _context.Questions.Add(stuff);
+        _context.Questions.Add(newQuestion);
+        account.Questions.Add(newQuestion);
         await _context.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(GetById), new { quizId, questionId = stuff.Id }, stuff);
+        return CreatedAtAction(nameof(GetById), new { quizId, questionId = newQuestion.Id }, newQuestion);
     }
 
     [HttpDelete("{questionId}")]
     public async Task<IActionResult> Delete([FromRoute] int quizId, [FromRoute] int questionId)
     {
-        var question = await _context.Questions.Include(it => it.Answers).Where(question => question.QuizId == quizId).FirstOrDefaultAsync(question => question.Id == questionId);
+        var question = await _context.Questions.Include(it => it.Accounts).Include(it => it.Answers).Where(question => question.QuizId == quizId).FirstOrDefaultAsync(question => question.Id == questionId);
 
         if (question is null) return NotFound();
-
+        
+        question.Accounts.Clear();
+        question.Answers.Clear();
         _context.Questions.Remove(question);
-
         await _context.SaveChangesAsync();
 
         return NoContent();
@@ -81,7 +86,6 @@ public class QuestionController : ControllerBase
         if (stuff is null) return NotFound();
 
         stuff.Text = question.Text;
-        stuff.IsStarred = question.IsStarred;
         stuff.Type = question.Type;
 
         await _context.SaveChangesAsync();
